@@ -163,5 +163,5 @@ The application is designed to work with the IIT Delhi campus pedestrian dataset
 - PyTorch ecosystem
 
 ## Contact
-Your Name - tushyengotmare.email@gmail.com
+Mail ID- tushyengotmare.email@gmail.com
 Project Link: 
