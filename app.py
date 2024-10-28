@@ -9,15 +9,13 @@ import seaborn as sns
 import io
 from matplotlib import patches
 
-# Cache the function to improve performance
-@st.cache_data
-def draw_bounding_boxes(image_input, boxes, scores=None, threshold=0.5):
+def draw_bounding_boxes(_image_input, boxes, scores=None, threshold=0.5):
     """Draw bounding boxes on the image with optional confidence scores"""
     # Convert PIL Image to numpy array if needed
-    if isinstance(image_input, Image.Image):
-        image = np.array(image_input)
+    if isinstance(_image_input, Image.Image):
+        image = np.array(_image_input)
     else:
-        image = image_input
+        image = _image_input
         
     fig, ax = plt.subplots(1, figsize=(10, 10))
     ax.imshow(image)
@@ -53,6 +51,13 @@ def create_sample_metrics():
         'AP (medium)': 0.75,
         'AP (large)': 0.80
     }
+
+@st.cache_data
+def process_uploaded_image(_uploaded_file):
+    """Process uploaded image with caching"""
+    if _uploaded_file is not None:
+        return Image.open(_uploaded_file)
+    return None
 
 def model_training_page():
     st.header("Model Training")
@@ -187,13 +192,31 @@ def evaluation_analysis_page():
         
         st.plotly_chart(fig)
 
+        # Performance across scenarios
+        st.subheader("Performance Across Scenarios")
+        scenarios = {
+            'Normal': 0.88,
+            'Crowded': 0.75,
+            'Low Light': 0.70,
+            'Partial Occlusion': 0.65,
+            'Far Distance': 0.60
+        }
+        
+        fig = go.Figure(data=[
+            go.Bar(x=list(scenarios.keys()),
+                  y=list(scenarios.values()),
+                  text=[f'{v:.2%}' for v in scenarios.values()],
+                  textposition='auto')
+        ])
+        fig.update_layout(
+            title='Performance by Scenario',
+            yaxis_range=[0,1],
+            yaxis_title='Detection Rate'
+        )
+        st.plotly_chart(fig)
+
     except Exception as e:
         st.error(f"An error occurred in evaluation analysis: {str(e)}")
-
-@st.cache_data
-def load_and_process_image(uploaded_file):
-    """Load and process uploaded image with caching"""
-    return Image.open(uploaded_file)
 
 def attention_maps_page():
     st.header("Attention Maps Visualization")
@@ -202,38 +225,39 @@ def attention_maps_page():
     
     if uploaded_file is not None:
         try:
-            image = load_and_process_image(uploaded_file)
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                st.subheader("Original Image with Detections")
-                st.image(image, caption='Input Image', use_column_width=True)
+            # Use the process_uploaded_image function
+            image = process_uploaded_image(uploaded_file)
+            if image is not None:
+                col1, col2 = st.columns(2)
                 
-                # Sample boxes for demonstration
-                sample_boxes = [[100, 100, 200, 300], [300, 150, 400, 350]]
-                sample_scores = [0.95, 0.87]
+                with col1:
+                    st.subheader("Original Image with Detections")
+                    st.image(image, caption='Input Image', use_column_width=True)
+                    
+                    # Sample boxes for demonstration
+                    sample_boxes = [[100, 100, 200, 300], [300, 150, 400, 350]]
+                    sample_scores = [0.95, 0.87]
+                    
+                    fig = draw_bounding_boxes(image, sample_boxes, sample_scores)
+                    st.pyplot(fig)
                 
-                fig = draw_bounding_boxes(image, sample_boxes, sample_scores)
-                st.pyplot(fig)
-            
-            with col2:
-                st.subheader("Attention Maps")
-                layer_num = st.slider("Select Attention Layer", 1, 6, 1)
-                
-                # Generate sample attention map
-                attention_map = np.random.rand(100, 100)
-                fig, ax = plt.subplots()
-                sns.heatmap(attention_map, ax=ax, cmap='viridis')
-                plt.title(f'Attention Map - Layer {layer_num}')
-                st.pyplot(fig)
-                
-                # Add attention statistics
-                st.write("Attention Statistics:")
-                st.write(f"- Max Attention Value: {attention_map.max():.3f}")
-                st.write(f"- Mean Attention Value: {attention_map.mean():.3f}")
-                st.write(f"- Attention Entropy: {-(attention_map * np.log(attention_map + 1e-10)).sum():.3f}")
-                
+                with col2:
+                    st.subheader("Attention Maps")
+                    layer_num = st.slider("Select Attention Layer", 1, 6, 1)
+                    
+                    # Generate sample attention map
+                    attention_map = np.random.rand(100, 100)
+                    fig, ax = plt.subplots()
+                    sns.heatmap(attention_map, ax=ax, cmap='viridis')
+                    plt.title(f'Attention Map - Layer {layer_num}')
+                    st.pyplot(fig)
+                    
+                    # Add attention statistics
+                    st.write("Attention Statistics:")
+                    st.write(f"- Max Attention Value: {attention_map.max():.3f}")
+                    st.write(f"- Mean Attention Value: {attention_map.mean():.3f}")
+                    st.write(f"- Attention Entropy: {-(attention_map * np.log(attention_map + 1e-10)).sum():.3f}")
+                    
         except Exception as e:
             st.error(f"Error processing image: {str(e)}")
 
@@ -270,13 +294,34 @@ def dataset_visualization_page():
             uploaded_file = st.file_uploader("Choose an image", type=['jpg', 'jpeg', 'png'])
             
             if uploaded_file is not None:
-                image = load_and_process_image(uploaded_file)
-                st.image(image, caption='Original Image', use_column_width=True)
-                
-                # Display image information
-                width, height = image.size
-                st.write(f"- Dimensions: {width} x {height}")
-                
+                # Use the process_uploaded_image function
+                image = process_uploaded_image(uploaded_file)
+                if image is not None:
+                    st.image(image, caption='Original Image', use_column_width=True)
+                    
+                    width, height = image.size
+                    st.write(f"- Dimensions: {width} x {height}")
+                    
+                    # Sample boxes for demonstration
+                    sample_boxes = [[100, 100, 200, 300], [300, 150, 400, 350]]
+                    sample_scores = [0.95, 0.87]
+                    
+                    st.subheader("Detection Visualization")
+                    fig = draw_bounding_boxes(image, sample_boxes, sample_scores)
+                    st.pyplot(fig)
+                    
+                    if len(sample_scores) > 0:
+                        st.subheader("Confidence Score Distribution")
+                        fig = go.Figure(data=[
+                            go.Histogram(x=sample_scores, nbinsx=10)
+                        ])
+                        fig.update_layout(
+                            title="Detection Confidence Distribution",
+                            xaxis_title="Confidence Score",
+                            yaxis_title="Count"
+                        )
+                        st.plotly_chart(fig)
+                    
     except Exception as e:
         st.error(f"An error occurred in dataset visualization: {str(e)}")
 
